@@ -1,87 +1,100 @@
-﻿//#define READ_RENDER_TARGET
-//#define USE_INDIRECT
-
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Rendering;
 
 public class Main : MonoBehaviour
 {
-
-    RenderTexture debugTexture;
-
     [SerializeField]
     Shader pclShader;
+
     Material pclMaterial;
-    
+
+    [SerializeField]
+    Shader postShader;
+
+    private RenderTexture _colorTex;
+    private RenderTexture _pointTex;
+
     private ComputeBuffer _argsBuffer;
-    //private ComputeBuffer _vtxBuffer;
+    private ComputeBuffer _vtxBuffer;
     private readonly int[] _args = { 1, 1, 0, 0 };
-    //private static readonly int VertexBuffer = Shader.PropertyToID("_VertexBuffer");
+    private readonly int[] _vtxs = { 0, 1, 2, 3 };
+    private static readonly int VertexBuffer = Shader.PropertyToID("_VertexBuffer");
+
+    private CommandBuffer commandBuffer;
 
     void Start()
     {
-        debugTexture = new RenderTexture(1024, 1024, 1, RenderTextureFormat.ARGBFloat);
-        debugTexture.Create();
-        debugTexture.wrapMode = TextureWrapMode.Clamp;
-        debugTexture.filterMode = FilterMode.Point;
-        
+
+
         _argsBuffer = new ComputeBuffer(4, sizeof(int), ComputeBufferType.IndirectArguments);
         _argsBuffer.SetData(_args);
-        pclMaterial = new Material(pclShader);
+        
+        _vtxBuffer = new ComputeBuffer(4, sizeof(int), ComputeBufferType.Default, ComputeBufferMode.SubUpdates);
+        _vtxBuffer.SetData(_vtxs);
 
-        //_vtxBuffer = new ComputeBuffer(4, sizeof(int), ComputeBufferType.Default, ComputeBufferMode.SubUpdates);
-        //_vtxBuffer.SetData(_args);
-        //pclMaterial.SetBuffer(VertexBuffer, _vtxBuffer);
+        pclMaterial = new Material(pclShader);
+        pclMaterial.hideFlags = HideFlags.HideAndDontSave;
+        pclMaterial.shader.hideFlags = HideFlags.HideAndDontSave;
+        pclMaterial.SetBuffer(VertexBuffer, _vtxBuffer);
+
+
+        //render target
+        _colorTex = new RenderTexture(Screen.width, Screen.height, 24);
+        _colorTex.Create();
+
+        _pointTex = new RenderTexture(Screen.width, Screen.height, 1, RenderTextureFormat.ARGBFloat);
+        _pointTex.Create();
+        _pointTex.wrapMode = TextureWrapMode.Clamp;
+        _pointTex.filterMode = FilterMode.Point;
+
+        commandBuffer = new CommandBuffer();
     }
 
     // Update is called once per frame
     void Update()
     {
-        //cshader.Dispatch(kernel_Lorenz, particleNum / 64, 1, 1);
+        if (Input.GetKey(KeyCode.A))
+        {
+            int w = _pointTex.width;
+            int h = _pointTex.height;
+
+            Texture2D tex = new Texture2D(w, h, TextureFormat.RGBAFloat, false);
+            tex.filterMode = FilterMode.Point;
+            RenderTexture.active = _pointTex;
+            Rect rect = new Rect(0, 0, w, h);
+            tex.ReadPixels(rect, 0, 0);
+            var pixel_x = (int)Input.mousePosition.x;
+            var pixel_y = (int)Input.mousePosition.y;
+            Color c = tex.GetPixel(pixel_x, pixel_y);
+            if (c.r > 0.1 || c.g > 0.1 || c.b > 0.1 || c.a > 0.1)
+            {
+                Debug.LogFormat("pixel[{0},{1}] = {2}", pixel_x, pixel_y, c);
+            } else
+            {
+                Debug.LogFormat("pixel[{0},{1}] = {2}", pixel_x, pixel_y, 0 );
+            }
+        }
     }
 
     void OnRenderObject()
     {
 
+        RenderBuffer[] rbufs = { };
+        Camera camera = Camera.main;
 
-#if READ_RENDER_TARGET
-        Graphics.SetRenderTarget(debugTexture);
-#endif
-#if USE_INDIRECT
-        var buffer = new CommandBuffer();
-        var cam = Camera.current;
-        cam.RemoveCommandBuffers(CameraEvent.AfterSkybox);
-        buffer.DrawProceduralIndirect(Matrix4x4.identity, pclMaterial, 0, MeshTopology.Points, _argsBuffer);
-        cam.AddCommandBuffer(CameraEvent.AfterSkybox, buffer);
-#else
+        camera.SetTargetBuffers(new[]
+        {
+            _colorTex.colorBuffer, _pointTex.colorBuffer
+        }, _colorTex.depthBuffer);
+
+
+        commandBuffer.Clear();
         GL.Clear(true, true, Color.clear);
         pclMaterial.SetPass(0);
         Graphics.DrawProceduralNow(MeshTopology.Points, 4);
-#endif
+        commandBuffer.Blit(_colorTex, -1);
+        camera.AddCommandBuffer(CameraEvent.AfterEverything, commandBuffer);
 
-#if READ_RENDER_TARGET
-        int w = debugTexture.width;
-        int h = debugTexture.height;
-
-        Texture2D tex = new Texture2D(w, h, TextureFormat.RGBAFloat, false);
-        tex.filterMode = FilterMode.Point;
-        RenderTexture.active = debugTexture;
-        Rect rect = new Rect(0, 0, w, h);
-        tex.ReadPixels(rect, 0, 0);
-        for (int pixel_y = 0; pixel_y < h; ++pixel_y)
-        {
-            for (int pixel_x = 0; pixel_x < w; ++pixel_x)
-            {
-                Color c = tex.GetPixel(pixel_x, pixel_y);
-                if (c.r > 0.1 || c.g > 0.1 || c.b > 0.1 || c.a > 0.1)
-                {
-                    Debug.LogFormat("pixel[{0},{1}] = {2}", pixel_x, pixel_y, c);
-                }
-            }
-        }
-#endif
 
     }
 
@@ -89,4 +102,5 @@ public class Main : MonoBehaviour
     {
         //T.B.D
     }
+
 }   

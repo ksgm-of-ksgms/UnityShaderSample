@@ -159,15 +159,13 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 406073452}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9cf955d8f4b7d484a9cc44937eac4187, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cshader: {fileID: 7200000, guid: 9c649b4eea173384688250516ec0bed6, type: 3}
-  renderingShader: {fileID: 4800000, guid: 833f7a06988875f49ad6faca0230a8f6, type: 3}
-  debugTexture: {fileID: 8400000, guid: 8dcaf715dea051c4ab89cb3323fe3509, type: 2}
   pclShader: {fileID: 4800000, guid: 24eb55748359ad1429fced154ed1fefe, type: 3}
+  postShader: {fileID: 0}
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
